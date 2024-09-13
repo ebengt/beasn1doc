@@ -6,21 +6,14 @@ defmodule GaDocsTest do
     assert GaDocs.hello() == :world
   end
 
-  test "uncomment" do
-    result = content() |> GaDocs.uncomment()
-
-    f = fn line -> not_comment?(line) end
-    assert Enum.all?(result, f)
-  end
-
   test "find start" do
-    [result | _] = content() |> GaDocs.uncomment() |> GaDocs.find_start()
+    [result | _] = content() |> GaDocs.find_start() |> GaDocs.find_start()
 
     assert result === "GPRSRecord	::= CHOICE"
   end
 
   test "structure content" do
-    result = content() |> GaDocs.uncomment() |> GaDocs.find_start() |> GaDocs.structure_one()
+    result = content() |> GaDocs.find_start() |> GaDocs.find_start() |> GaDocs.structure_one()
 
     {structure, rest} = result
     assert rest === ["", ""]
@@ -58,12 +51,47 @@ defmodule GaDocsTest do
            ]
   end
 
+  test "structure integer" do
+    lines = ["AccessAvailabilityChangeReason		::= INTEGER (0..4294967295)"]
+
+    result = GaDocs.structure_one(lines)
+
+    {structure, rest} = result
+    assert rest === []
+
+    assert structure === %{
+             "AccessAvailabilityChangeReason" => %{
+               type: "INTEGER"
+             }
+           }
+  end
+
+  test "structure as strings" do
+    structure = %{
+      "AccessAvailabilityChangeReason" => %{
+        type: "INTEGER"
+      }
+    }
+
+    [result] = Enum.map(structure, &GaDocs.strings/1)
+
+    assert result === [
+             "# AccessAvailabilityChangeReason",
+             "| Parameter | Type | Notes |",
+             "|--|--|--|",
+             "| AccessAvailabilityChangeReason | INTEGER | |"
+           ]
+  end
+
   #
   # Private functions
   #
 
   defp content(),
     do: """
+    DEFINITIONS IMPLICIT TAGS	::=
+
+    BEGIN
     LocationMethod
     FROM SS-DataTypes {itu-t identified-organization (4) etsi (0) mobileDomain (0) gsm-Access (2) modules (3) ss-DataTypes (2) version15 (15)}
     -- from TS 24.080 [209]
@@ -87,7 +115,4 @@ defmodule GaDocsTest do
     }
 
     """
-
-  defp not_comment?("--" <> _), do: false
-  defp not_comment?(_), do: true
 end
