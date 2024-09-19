@@ -12,7 +12,7 @@ defmodule GaDocsTest do
     assert result === "GPRSRecord	::= CHOICE"
   end
 
-  test "structure content" do
+  test "structure compound" do
     result = content() |> GaDocs.find_start() |> GaDocs.find_start() |> GaDocs.structure_one()
 
     {structure, rest} = result
@@ -21,21 +21,35 @@ defmodule GaDocsTest do
     assert structure === %{
              "GPRSRecord" => %{
                type: "CHOICE",
-               content: [
-                 ["sgsnPDPRecord", "[20]", "SGSNPDPRecord"],
-                 ["tWAGRecord", "[97]", "TWAGRecord"]
+               compound: [
+                 %{
+                   parameter: "servingNodeiPv6Address",
+                   value: "49",
+                   type: "GSNAddress",
+                   modifier: ["SEQUENCE", "OF"],
+                   notes: "OPTIONAL"
+                 },
+                 %{parameter: "sgsnPDPRecord", value: "20", type: "SGSNPDPRecord"},
+                 %{parameter: "tWAGRecord", value: "97", type: "TWAGRecord"}
                ]
              }
            }
   end
 
-  test "structure content as strings" do
+  test "structure compound as strings" do
     structure = %{
       "GPRSRecord" => %{
         type: "CHOICE",
-        content: [
-          ["sgsnPDPRecord", "[20]", "SGSNPDPRecord"],
-          ["tWAGRecord", "[97]", "TWAGRecord"]
+        compound: [
+          %{
+            parameter: "servingNodeiPv6Address",
+            value: "49",
+            type: "GSNAddress",
+            modifier: ["SEQUENCE", "OF"],
+            notes: "OPTIONAL"
+          },
+          %{parameter: "sgsnPDPRecord", value: "20", type: "SGSNPDPRecord"},
+          %{parameter: "tWAGRecord", value: "97", type: "TWAGRecord"}
         ]
       }
     }
@@ -46,6 +60,7 @@ defmodule GaDocsTest do
              "# GPRSRecord",
              "| Parameter | Value | Type | Notes |",
              "|--|--|--|--|",
+             "| servingNodeiPv6Address | 49 | SEQUENCE OF GSNAddress | OPTIONAL |",
              "| sgsnPDPRecord | 20 | SGSNPDPRecord | |",
              "| tWAGRecord | 97 | TWAGRecord | |"
            ]
@@ -61,7 +76,8 @@ defmodule GaDocsTest do
 
     assert structure === %{
              "AccessAvailabilityChangeReason" => %{
-               type: "INTEGER"
+               type: "INTEGER",
+               notes: "(0..4294967295)"
              }
            }
   end
@@ -110,6 +126,7 @@ defmodule GaDocsTest do
     -- Record values 78,79 and 92, 95, 96 are EPC specific
     --
     {
+    servingNodeiPv6Address				[49] SEQUENCE OF GSNAddress OPTIONAL,
     sgsnPDPRecord			[20] SGSNPDPRecord,
     tWAGRecord				[97] TWAGRecord
     }
