@@ -38,23 +38,21 @@ defmodule GaDocsTest do
 
   test "structure compound as strings" do
     structure = %{
-      "GPRSRecord" => %{
-        type: "CHOICE",
-        compound: [
-          %{
-            parameter: "servingNodeiPv6Address",
-            value: "49",
-            type: "GSNAddress",
-            modifier: ["SEQUENCE", "OF"],
-            notes: "OPTIONAL"
-          },
-          %{parameter: "sgsnPDPRecord", value: "20", type: "SGSNPDPRecord"},
-          %{parameter: "tWAGRecord", value: "97", type: "TWAGRecord"}
-        ]
-      }
+      type: "CHOICE",
+      compound: [
+        %{
+          parameter: "servingNodeiPv6Address",
+          value: "49",
+          type: "GSNAddress",
+          modifier: ["SEQUENCE", "OF"],
+          notes: "OPTIONAL"
+        },
+        %{parameter: "sgsnPDPRecord", value: "20", type: "SGSNPDPRecord"},
+        %{parameter: "tWAGRecord", value: "97", type: "TWAGRecord"}
+      ]
     }
 
-    [result] = Enum.map(structure, &GaDocs.strings/1)
+    result = GaDocs.strings("GPRSRecord", structure)
 
     assert result === [
              "# GPRSRecord",
@@ -82,20 +80,35 @@ defmodule GaDocsTest do
            }
   end
 
+  test "structure PLMN" do
+    lines = ["PLMN-Id		::= OCTET STRING (SIZE (3))"]
+
+    result = GaDocs.structure_one(lines)
+
+    {structure, rest} = result
+    assert rest === []
+
+    assert structure === %{
+             "PLMN-Id" => %{
+               modifier: ["OCTET", "STRING"],
+               type: "(SIZE",
+               notes: "(3))"
+             }
+           }
+  end
+
   test "structure as strings" do
     structure = %{
-      "AccessAvailabilityChangeReason" => %{
-        type: "INTEGER"
-      }
+      type: "INTEGER"
     }
 
-    [result] = Enum.map(structure, &GaDocs.strings/1)
+    result = GaDocs.strings("AccessAvailabilityChangeReason", structure)
 
     assert result === [
              "# AccessAvailabilityChangeReason",
-             "| Parameter | Type | Notes |",
-             "|--|--|--|",
-             "| AccessAvailabilityChangeReason | INTEGER | |"
+             "| Type | Notes |",
+             "|--|--|",
+             "| INTEGER | |"
            ]
   end
 

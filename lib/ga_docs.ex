@@ -16,13 +16,13 @@ defmodule GaDocs do
     :world
   end
 
-  def main([file | parameters]) do
+  def main([file | types]) do
     file
     |> File.read!()
     |> find_start()
     |> Enum.filter(&uncomment_line?/1)
     |> structures(%{})
-    |> filter(parameters)
+    |> filter(types)
     |> Enum.map(&strings/1)
     |> Enum.each(&IO.puts/1)
   end
@@ -35,19 +35,20 @@ defmodule GaDocs do
   def find_start(lines) when is_list(lines),
     do: lines |> Enum.drop_while(&uninteresting_line?/1)
 
-  def strings({key, %{compound: c}}) do
+  def strings({key, value}), do: strings(key, value) |> Enum.join("\n")
+
+  def strings(key, %{compound: c}) do
     heading = "# #{key}"
     names = "| Parameter | Value | Type | Notes |"
     divider = "|--|--|--|--|"
-    [heading, names, divider | Enum.map(c, &strings_content/1)]
+    [heading, names, divider | Enum.map(c, &strings_compound/1)]
   end
 
-  def strings({key, %{type: t}}) do
+  def strings(key, value) do
     heading = "# #{key}"
-    names = "| Parameter | Type | Notes |"
-    divider = "|--|--|--|"
-    result = "| #{key} | #{t} | |"
-    [heading, names, divider, result]
+    names = "| Type | Notes |"
+    divider = "|--|--|"
+    [heading, names, divider, strings_one(value)]
   end
 
   def structure_one([]),
@@ -66,22 +67,27 @@ defmodule GaDocs do
   defp compound_not_ended?("}" <> _), do: false
   defp compound_not_ended?(_), do: true
 
-  defp filter(structures, parameters) do
-    used = filter_parameters(structures, parameters, [])
+  defp filter(structures, []), do: structures
+
+  defp filter(structures, types) do
+    used = filter_types(structures, types, [])
+
     Map.take(structures, used)
   end
 
-  defp filter_parameters(_structures, [], acc), do: acc
+  defp filter_types(_structures, [], acc), do: acc
 
-  defp filter_parameters(structures, parameters, acc) do
+  defp filter_types(structures, types, acc) do
     content_parameters =
-      Enum.flat_map(Map.take(structures, parameters), &filter_parameters_content/1)
+      Map.take(structures, types) |> Enum.flat_map(&filter_types_compund/1)
 
-    filter_parameters(structures, content_parameters, parameters ++ acc)
+    filter_types(structures, content_parameters, types ++ acc)
   end
 
-  defp filter_parameters_content(%{content: [parameter | _]}), do: [parameter]
-  defp filter_parameters_content(_), do: []
+  defp filter_types_compund({_key, %{compound: list}}),
+    do: Enum.map(list, fn map -> Map.get(map, :type) end)
+
+  defp filter_types_compund(_), do: []
 
   defp parameter_type(line) do
     [parameter, rest] = String.split(line, "::=")
@@ -89,22 +95,36 @@ defmodule GaDocs do
     {String.trim(parameter), type_curly_brace}
   end
 
-  defp parameter_type_curly_brace([type, "{" | _]), do: {type, "{"}
+  defp parameter_type_curly_brace([type, "{" | _]), do: {[type], "{"}
   defp parameter_type_curly_brace(other), do: {other, ""}
 
-  defp strings_content(%{parameter: p, value: v, type: t, modifier: m, notes: n}),
+  defp strings_compound(%{parameter: p, value: v, type: t, modifier: m, notes: n}),
     do: "| #{p} | #{v} | #{Enum.join(m, " ")} #{t} | #{n} |"
 
-  defp strings_content(%{parameter: p, value: v, type: t, modifier: m}),
+  defp strings_compound(%{parameter: p, value: v, type: t, modifier: m}),
     do: "| #{p} | #{v} | #{Enum.join(m, " ")} #{t} | |"
 
-  defp strings_content(%{parameter: p, value: v, type: t, notes: n}),
+  defp strings_compound(%{parameter: p, value: v, type: t, notes: n}),
     do: "| #{p} | #{v} | #{t} | #{n} |"
 
-  defp strings_content(%{parameter: p, value: v, type: t}),
+  defp strings_compound(%{parameter: p, value: v, type: t}),
     do: "| #{p} | #{v} | #{t} | |"
 
-  defp strings_content([error]), do: error <> "\n"
+  defp strings_compound(error), do: "#{error}"
+
+  defp strings_one(%{type: t, modifier: m, notes: n}),
+    do: "| #{Enum.join(m, " ")} #{t} | #{n} |"
+
+  defp strings_one(%{type: t, modifier: m}),
+    do: "| #{Enum.join(m, " ")} #{t} | |"
+
+  defp strings_one(%{type: t, notes: n}),
+    do: "| #{t} | #{n} |"
+
+  defp strings_one(%{type: t}),
+    do: "| #{t} | |"
+
+  defp strings_one(error), do: "#{error}"
 
   def structures([], acc), do: acc
 
@@ -158,9 +178,11 @@ defmodule GaDocs do
   defp structure_one_content([type_is | modifier]),
     do: %{type: type_is, modifier: Enum.reverse(modifier)}
 
-  defp uncomment_line?("--" <> _line), do: false
-  defp uncomment_line?(""), do: false
-  defp uncomment_line?(_line), do: true
+  defp uncomment_line?(line), do: uncomment_line?(line, :first)
+  defp uncomment_line?("--" <> _line, _), do: false
+  defp uncomment_line?("", _), do: false
+  defp uncomment_line?(line, :first), do: line |> String.trim() |> uncomment_line?(:second)
+  defp uncomment_line?(_line, _), do: true
 
   defp uninteresting_line?(line), do: not String.contains?(line, "::=")
 end
