@@ -30,4 +30,6 @@ defmodule GaDocs do
   #
 
   defp docs(content, types, ".asn1"), do: GaDocs.ASN1.format(content, types)
+  defp docs(content, _types, ".consumer"), do: GaDocs.Gnat.format(content, "consumer")
+  defp docs(content, _types, ".stream"), do: GaDocs.Gnat.format(content, "stream")
 end
